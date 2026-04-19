@@ -11,7 +11,7 @@
  */
 static u16 read_u16_le(const u8 *buf, size_t offset) {
   return (u16)buf[offset]
-    | (u16)buf[offset + 1] << 8;
+     |  (u16)buf[offset + 1] << 8;
 }
 
 static u32 read_u32_le(const u8 *buf, size_t offset) {
@@ -23,13 +23,13 @@ static u32 read_u32_le(const u8 *buf, size_t offset) {
 
 static u64 read_u64_le(const u8 *buf, size_t offset) {
   return (u64)buf[offset]
-    | (u64)buf[offset + 1] << 8
-    | (u64)buf[offset + 2] << 16
-    | (u64)buf[offset + 3] << 24
-    | (u64)buf[offset + 4] << 32
-    | (u64)buf[offset + 5] << 40
-    | (u64)buf[offset + 6] << 48
-    | (u64)buf[offset + 7] << 56;
+     | (u64)buf[offset + 1] << 8
+     | (u64)buf[offset + 2] << 16
+     | (u64)buf[offset + 3] << 24
+     | (u64)buf[offset + 4] << 32
+     | (u64)buf[offset + 5] << 40
+     | (u64)buf[offset + 6] << 48
+     | (u64)buf[offset + 7] << 56;
 }
 //
 // API implementation
