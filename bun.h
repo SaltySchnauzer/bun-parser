@@ -82,6 +82,9 @@ typedef struct {
 typedef struct {
     FILE   *file;           // open file handle
     long    file_size;      // total file size in bytes
+    bun_result_t code;      // result code of file (BUN_OK, BUN_MALFORMED, etc.)
+    char *name_read;        // first 60 bytes of name
+    char *data_read;        // first 60 bytes of data section
     // add further fields here as needed
 } BunParseContext;
 
