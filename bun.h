@@ -52,6 +52,7 @@ typedef struct {
 } BunHeader;
 
 typedef struct {
+    // Defined by header
     u32 name_offset;
     u32 name_length;
     u64 data_offset;
@@ -61,6 +62,11 @@ typedef struct {
     u32 type;
     u32 checksum;
     u32 flags;
+    // Read-in summaries
+    char[60] string_table_entry;
+    char[60] data_table_entry;
+    // Error code
+    bun_result_t code;
 } BunAssetRecord;
 
 //
