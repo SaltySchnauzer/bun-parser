@@ -97,9 +97,29 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 }
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
-
-  // TODO: implement asset record parsing and validation
-
+u8 buf[BUN_ASSET_RECORD_SIZE];
+    //go to start of asset table
+    if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
+        return BUN_ERR_IO;
+    }
+    //loop through all assets
+    for (u32 i = 0; i < header->asset_count; i++) {
+        //read one asset record
+        if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
+            return BUN_ERR_IO;
+        }
+        // 4. Extract fields from this record
+        u32 name_offset = read_u32_le(buf, 0);
+        u32 name_length = read_u32_le(buf, 4);
+        u64 data_offset = read_u64_le(buf, 8);
+        u64 data_size   = read_u64_le(buf, 16);
+        u64 uncompressed_size = read_u64_le(buf,24);
+        u32 compression = read_u32_le(buf, 32);
+        u32 type = read_u32_le(buf, 36);
+        u32 checksum = read_u32_le(buf, 40);
+        u32 flags = read_u32_le(buf, 44);
+    }
+    // to do: validation 
   return BUN_OK;
 }
 
