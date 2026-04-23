@@ -119,7 +119,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 
   if (header->asset_table_offset + asset_table_size > file_size ||
   header->string_table_offset + header->string_table_size > file_size ||
-  header->data_section_offset + header->data_section_size){
+  header->data_section_offset + header->data_section_size > file_size){
     return BUN_MALFORMED;
   }
   return BUN_OK;
