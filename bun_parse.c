@@ -1,7 +1,7 @@
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "bun.h"
 
@@ -10,19 +10,26 @@
  * into a little-endian u32.
  */
 static u16 read_u16_le(const u8 *buf, size_t offset) {
-  return (u16)buf[offset] | (u16)buf[offset + 1] << 8;
+  return (u16)buf[offset]
+     |  (u16)buf[offset + 1] << 8;
 }
 
 static u32 read_u32_le(const u8 *buf, size_t offset) {
-  return (u32)buf[offset] | (u32)buf[offset + 1] << 8 |
-         (u32)buf[offset + 2] << 16 | (u32)buf[offset + 3] << 24;
+  return (u32)buf[offset]
+     | (u32)buf[offset + 1] << 8
+     | (u32)buf[offset + 2] << 16
+     | (u32)buf[offset + 3] << 24;
 }
 
 static u64 read_u64_le(const u8 *buf, size_t offset) {
-  return (u64)buf[offset] | (u64)buf[offset + 1] << 8 |
-         (u64)buf[offset + 2] << 16 | (u64)buf[offset + 3] << 24 |
-         (u64)buf[offset + 4] << 32 | (u64)buf[offset + 5] << 40 |
-         (u64)buf[offset + 6] << 48 | (u64)buf[offset + 7] << 56;
+  return (u64)buf[offset]
+     | (u64)buf[offset + 1] << 8
+     | (u64)buf[offset + 2] << 16
+     | (u64)buf[offset + 3] << 24
+     | (u64)buf[offset + 4] << 32
+     | (u64)buf[offset + 5] << 40
+     | (u64)buf[offset + 6] << 48
+     | (u64)buf[offset + 7] << 56;
 }
 //
 // API implementation
@@ -78,35 +85,11 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   header->string_table_size = read_u64_le(buf, 28);
   header->data_section_offset = read_u64_le(buf, 36);
   header->data_section_size = read_u64_le(buf, 44);
-
+  
   // TODO: validate fields and return BUN_MALFORMED or BUN_UNSUPPORTED
   // as required by the spec. The magic check is a good place to start.
 
-  // Notes 4.1,  5: BUN Magic Field must match exactly
   if (header->magic != BUN_MAGIC) {
-    return BUN_MALFORMED;
-  }
-  // Notes 4.1,  7: version_major and version_minor must be 1 and 0
-  // respectively, other versions are NOT supported
-  if (header->version_major != 1 || header->version_minor != 0) {
-    return BUN_UNSUPPORTED;
-  }
-
-  // Notes 4.1,  3: The three offsets and two sizes must be divisible by 4
-
-  // Checking table offsets
-  // For specific error handling (Like if we wanna say that a specific table
-  // offset is invalid) feel free to split this up
-  if (header->string_table_offset % 4 != 0 ||
-      header->asset_table_offset % 4 != 0 ||
-      header->data_section_offset % 4 != 0) {
-    return BUN_MALFORMED;
-  }
-  // Checking for string and data sizes
-  // Again, feel free to split this up if we wanna specify if a certain section
-  // is malformed
-  if (header->string_table_size % 4 != 0 ||
-      header->data_section_size % 4 != 0) {
     return BUN_MALFORMED;
   }
 
@@ -115,42 +98,39 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   u8 buf[BUN_ASSET_RECORD_SIZE];
-  // Initialise Fields
-  u32 name_offset, name_length, compression, type, checksum, flags;
-  u64 data_offset, data_size, uncompressed_size;
-  // go to start of asset table
+  //go to start of asset table
   if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
+      return BUN_ERR_IO;
+  }
+  //saving all the asset records in ctx 
+  ctx->assets = malloc(header->asset_count * BUN_ASSET_RECORD_SIZE);
+  if (ctx->assets == NULL) {
     return BUN_ERR_IO;
   }
-  // loop through all assets
+  //loop through all assets
   for (u32 i = 0; i < header->asset_count; i++) {
-    // read one asset record
-    if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) !=
-        BUN_ASSET_RECORD_SIZE) {
-      return BUN_ERR_IO;
+    if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
+        return BUN_ERR_IO;
     }
-    // 4. Extract fields from this record
-    u32 name_offset = read_u32_le(buf, 0);
-    u32 name_length = read_u32_le(buf, 4);
-    u64 data_offset = read_u64_le(buf, 8);
-    u64 data_size = read_u64_le(buf, 16);
-    u64 uncompressed_size = read_u64_le(buf, 24);
-    u32 compression = read_u32_le(buf, 32);
-    u32 type = read_u32_le(buf, 36);
-    u32 checksum = read_u32_le(buf, 40);
-    u32 flags = read_u32_le(buf, 44);
+    ctx->assets[i].name_offset = read_u32_le(buf, 0);
+    ctx->assets[i].name_length = read_u32_le(buf, 4);
+    ctx->assets[i].data_offset = read_u64_le(buf, 8);
+    ctx->assets[i].data_size   = read_u64_le(buf, 16);
+    ctx->assets[i].uncompressed_size = read_u64_le(buf,24);
+    ctx->assets[i].compression = read_u32_le(buf, 32);
+    ctx->assets[i].type = read_u32_le(buf, 36);
+    ctx->assets[i].checksum = read_u32_le(buf, 40);
+    ctx->assets[i].flags = read_u32_le(buf, 44);
   }
-  // to do: valididation
-  // We aren't supporting zlib uncompression :(   (UNLESS WE HAVE TIME TO).
-  if (compression == 2) {
-    return BUN_UNSUPPORTED;
-  }
+  // to do: validation 
+
   return BUN_OK;
 }
 
 bun_result_t bun_close(BunParseContext *ctx) {
   assert(ctx->file);
-
+  free(ctx->assets);
+  ctx->assets = NULL;
   int res = fclose(ctx->file);
   if (res) {
     return BUN_ERR_IO;

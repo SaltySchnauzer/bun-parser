@@ -82,6 +82,10 @@ typedef struct {
 typedef struct {
     FILE   *file;           // open file handle
     long    file_size;      // total file size in bytes
+    //BunHeader *header;    // stores the parsed header content
+    u32 asset_count;
+    BunAssetRecord *assets;  //stores the parsed assets content
+    u32 parsed_asset_count;
     // add further fields here as needed
 } BunParseContext;
 
