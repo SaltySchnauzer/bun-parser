@@ -28,6 +28,14 @@ static u64 read_u64_le(const u8 *buf, size_t offset) {
 // API implementation
 //
 
+static int sections_overlap(u64 offset_a,u64 size_a,u64 offset_b,u64 size_b){
+  if (!(offset_a + size_a <= offset_b ||
+  offset_b + size_b <= offset_a)) {
+    return 1;
+  }
+  return 0;
+}
+
 bun_result_t bun_open(const char *path, BunParseContext *ctx) {
   // we open the file; seek to the end, to get the size; then jump back to the
   // beginning, ready to start parsing.
@@ -78,7 +86,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   header->string_table_size = read_u64_le(buf, 28);
   header->data_section_offset = read_u64_le(buf, 36);
   header->data_section_size = read_u64_le(buf, 44);
-
+  
   // TODO: validate fields and return BUN_MALFORMED or BUN_UNSUPPORTED
   // as required by the spec. The magic check is a good place to start.
 
