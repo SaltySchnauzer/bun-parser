@@ -110,6 +110,11 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     return BUN_MALFORMED;
   }
 
+  u64 file_size = (u64)ctx-file_size;
+  u64 asset_table_size = (u64)header->asset_count * 48;
+
+  
+
   return BUN_OK;
 }
 
