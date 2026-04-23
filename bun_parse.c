@@ -110,7 +110,11 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     return BUN_MALFORMED;
   }
 
+  // Notes 9,  2: All sections must, in their entirety, remain within the bounds
+  // of the file. If the declared start or end of a section falls outside the bounds
+  // of the containing file, that is a parse error.
   
+
 
   return BUN_OK;
 }
