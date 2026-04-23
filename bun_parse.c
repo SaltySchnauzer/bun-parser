@@ -113,7 +113,14 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   u64 file_size = (u64)ctx-file_size;
   u64 asset_table_size = (u64)header->asset_count * 48;
 
-  
+  if(sections_overlap(header->asset_table_offset, asset_table_size,
+  header->data_section_offset, header->data_section_size) ||
+  sections_overlap(header->asset_table_offset, asset_table_size,
+  header->string_table_offset, header->string_table_size) ||
+  sections_overlap(header->data_section_offset, header->data_section_size,
+  header->string_table_offset, header->string_table_size)) {
+    return BUN_MALFORMED;
+  }
 
   return BUN_OK;
 }
