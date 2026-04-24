@@ -68,17 +68,20 @@ bun_result_t bun_open(const char *path, BunParseContext *ctx) {
 
 bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   u8 buf[BUN_HEADER_SIZE];
+  bun_result_t exit_code = BUN_OK;
 
   // our file is far too short, and cannot be valid!
   // (query: how do we let `main` know that "file was too short"
   // was the exact problem? Where can we put details about the
   // exact validation problem that occurred?)
   if (ctx->file_size < (long)BUN_HEADER_SIZE) {
-    return BUN_MALFORMED;
+    bun_log_error(ctx, "Header claims smaller filesize than actual header size.");
+    exit_code = BUN_MALFORMED;
   }
 
   // slurp the header into `buf`
   if (fread(buf, 1, BUN_HEADER_SIZE, ctx->file) != BUN_HEADER_SIZE) {
+    bun_log_error(ctx, "Critical: file-read of bun-file failed.");
     return BUN_ERR_IO;
   }
   
@@ -104,12 +107,14 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 
   // Notes 4.1,  5: BUN Magic Field must match exactly
   if (header->magic != BUN_MAGIC) {
-    return BUN_MALFORMED;
+    bun_log_error(ctx, "Magic number doesn't match.");
+    exit_code = BUN_MALFORMED;
   }
   // Notes 4.1,  7: version_major and version_minor must be 1 and 0
   // respectively, other versions are NOT supported
   if (header->version_major != 1 || header->version_minor != 0) {
-    return BUN_UNSUPPORTED;
+    bun_log_error(ctx, "Version numbers don't align.");
+    exit_code = BUN_UNSUPPORTED;
   }
 
   // Notes 4.1,  3: The three offsets and two sizes must be divisible by 4
@@ -120,17 +125,19 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   if (header->string_table_offset % 4 != 0 ||
       header->asset_table_offset % 4 != 0 ||
       header->data_section_offset % 4 != 0) {
-    return BUN_MALFORMED;
+    bun_log_error(ctx, "Table offsets not a multiple of 4.");
+    exit_code = BUN_MALFORMED;
   }
   // Checking for string and data sizes
   // Again, feel free to split this up if we wanna specify if a certain section
   // is malformed
   if (header->string_table_size % 4 != 0 ||
       header->data_section_size % 4 != 0) {
-    return BUN_MALFORMED;
+    bun_log_error(ctx, "Table sizes not a multiple of 4.");
+    exit_code = BUN_MALFORMED;
   }
 
-  return BUN_OK;
+  return exit_code;
 }
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {

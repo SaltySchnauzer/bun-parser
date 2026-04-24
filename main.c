@@ -29,27 +29,30 @@ int main(int argc, char *argv[]) {
   if (result != BUN_OK) {
     // bun_parse_header returns a code; printing the specifics is up to
     // you -- you may want to extend the API to return error details
-    fprintf(stderr, "Error: header invalid or unsupported (code %d)\n", result);
-    bun_close(&ctx);
-    return result;
+    fprintf(stderr, "\033[31mError: header invalid or unsupported (code %d)\033[0m\n", result);
   }
 
-  result = bun_parse_assets(&ctx, &header);
-  if (result != BUN_OK) {
-    fprintf(stderr, "Error: assets invalid or unsupported (code %d)\n", result);
-    
-    //
-    // Print errors and close tmpfile
-    //
-    rewind(ctx.errors);
-    char error_buffer[10000]; // should be large enough tee hee
-    fgets(error_buffer, sizeof(error_buffer), ctx.errors);
-    fprintf(stderr, "%s", error_buffer);
-    fclose(ctx.errors);
-  
-    bun_close(&ctx);
-  return result;
+  // NOTE: the parser will attempt asset read and printout even on a fail!
+
+  bun_result_t new_result = bun_parse_assets(&ctx, &header);
+  if (new_result != BUN_OK){
+    if (new_result == BUN_MALFORMED){
+      result = new_result;
+      fprintf(stderr, "\033[31mError: assets invalid or unsupported (code %d)\033[0m\n", result);
+    }
   }
+  if (new_result != BUN_OK) {
+  }
+
+  //
+  // Print errors and close tmpfile
+  //
+  rewind(ctx.errors);
+  char error_buffer[10000]; // should be large enough tee hee
+  fgets(error_buffer, sizeof(error_buffer), ctx.errors);
+  fprintf(stderr, "\033[31m%s\033[0m", error_buffer);
+  fclose(ctx.errors);
+
   //on BUN_OK, print human-readable summary to stdout.
   //TODO
   // on BUN_MALFORMED / BUN_UNSUPPORTED, print violation list to stderr.
@@ -87,9 +90,6 @@ int main(int argc, char *argv[]) {
     printf("  flags: %u\n", asset.flags);
   }
   
-  
-  
   bun_close(&ctx);
-  fclose(ctx.errors);
   return result;
 }
