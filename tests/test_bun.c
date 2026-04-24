@@ -86,7 +86,7 @@ START_TEST(test_unsupported_version) {
 }
 END_TEST
 
-START_TEST(bad_offset_alignment) {
+START_TEST(test_bad_offset_alignment) {
     BunParseContext ctx = {0};
     BunHeader header    = {0};
 
