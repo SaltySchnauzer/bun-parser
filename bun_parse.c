@@ -73,6 +73,10 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   if (fread(buf, 1, BUN_HEADER_SIZE, ctx->file) != BUN_HEADER_SIZE) {
     return BUN_ERR_IO;
   }
+  
+  // printf("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+  //      buf[0], buf[1], buf[2], buf[3],
+  //      buf[4], buf[5], buf[6], buf[7]);
 
   // TODO: populate `header` from `buf`.
 
@@ -128,9 +132,11 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
   //saving all the asset records in ctx 
   ctx->assets = malloc(header->asset_count * BUN_ASSET_RECORD_SIZE);
+  printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
   if (ctx->assets == NULL) {
     return BUN_ERR_IO;
   }
+  ctx->asset_count = header->asset_count;
   //loop through all assets
   for (u32 i = 0; i < header->asset_count; i++) {
     if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
@@ -146,7 +152,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     ctx->assets[i].checksum = read_u32_le(buf, 40);
     ctx->assets[i].flags = read_u32_le(buf, 44);
   }
-  // to do: validation 
+  // TODO: validation 
 
   return BUN_OK;
 }
