@@ -62,11 +62,9 @@ typedef struct {
     u32 type;
     u32 checksum;
     u32 flags;
-    // Read-in summaries
-    char[60] string_table_entry;
-    char[60] data_table_entry;
-    // Error code
-    bun_result_t code;
+    // Read-in summaries (60 byte limit + nul)
+    char string_table_entry[61];
+    char data_table_entry[61];
 } BunAssetRecord;
 
 //
@@ -92,6 +90,7 @@ typedef struct {
     u32 asset_count;
     BunAssetRecord *assets;  //stores the parsed assets content
     u32 parsed_asset_count;
+    FILE *errors;           // tmpfile for error logging
     // add further fields here as needed
 } BunParseContext;
 
