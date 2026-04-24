@@ -19,6 +19,12 @@ int main(int argc, char *argv[]) {
     return result;
   }
 
+  ctx.errors = tmpfile();
+  if (ctx.errors == NULL) {
+    fprintf(stderr, "Error: could not create tempfile.\n");
+    return 1;
+  }
+
   result = bun_parse_header(&ctx, &header);
   if (result != BUN_OK) {
     // bun_parse_header returns a code; printing the specifics is up to
@@ -31,6 +37,16 @@ int main(int argc, char *argv[]) {
   result = bun_parse_assets(&ctx, &header);
   if (result != BUN_OK) {
     fprintf(stderr, "Error: assets invalid or unsupported (code %d)\n", result);
+    
+    //
+    // Print errors and close tmpfile
+    //
+    rewind(ctx.errors);
+    char error_buffer[10000]; // should be large enough tee hee
+    fgets(error_buffer, sizeof(error_buffer), ctx.errors);
+    fprintf(stderr, "%s", error_buffer);
+    fclose(ctx.errors);
+  
     bun_close(&ctx);
   return result;
   }
@@ -38,6 +54,9 @@ int main(int argc, char *argv[]) {
   //TODO
   // on BUN_MALFORMED / BUN_UNSUPPORTED, print violation list to stderr.
   // See project brief for output requirements.
+  //
+  // Print out header
+  //
   printf("Header:\n");
   printf("  magic: 0x%08x\n", header.magic);
   printf("  version: %u.%u\n", header.version_major, header.version_minor);
@@ -48,10 +67,15 @@ int main(int argc, char *argv[]) {
   printf("  data section offset: %llu\n", (unsigned long long)header.data_section_offset);
   printf("  data section size: %llu\n", (unsigned long long)header.data_section_size);
 
+  //
+  // Print out asset details
+  //
   printf("\nAssets:\n");
   for (u32 i = 0; i < ctx.asset_count; i++) {
     BunAssetRecord asset = ctx.assets[i];
     printf("Asset %u:\n", i+1);
+    printf("  Name: %.60s\n", ctx.assets[i].string_table_entry);
+    printf("  Data: %.60s\n", ctx.assets[i].data_table_entry);
     printf("  name_offset: %u\n", asset.name_offset);
     printf("  name_length: %u\n", asset.name_length);
     printf("  data_offset: %llu\n", (unsigned long long)asset.data_offset);
@@ -62,7 +86,10 @@ int main(int argc, char *argv[]) {
     printf("  checksum: %u\n", asset.checksum);
     printf("  flags: %u\n", asset.flags);
   }
-
+  
+  
+  
   bun_close(&ctx);
+  fclose(ctx.errors);
   return result;
 }
