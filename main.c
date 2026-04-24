@@ -35,30 +35,61 @@ int main(int argc, char *argv[]) {
   }
 
   result = bun_parse_assets(&ctx, &header);
-
-  // Print out assets if successful!
-
-  if (result == BUN_OK){
-    for (u32 i = 0; i < ctx.asset_count; i++){
-      printf("Asset Number: %d\n", i);
-      printf("  Name: %.60s\n", ctx.assets[i].string_table_entry);
-      printf("  Data: %.60s\n", ctx.assets[i].data_table_entry);
-    }
+  if (result != BUN_OK) {
+    fprintf(stderr, "Error: assets invalid or unsupported (code %d)\n", result);
+    
+    //
+    // Print errors and close tmpfile
+    //
+    rewind(ctx.errors);
+    char error_buffer[10000]; // should be large enough tee hee
+    fgets(error_buffer, sizeof(error_buffer), ctx.errors);
+    fprintf(stderr, "%s", error_buffer);
+    fclose(ctx.errors);
+  
+    bun_close(&ctx);
+  return result;
   }
+  //on BUN_OK, print human-readable summary to stdout.
+  //TODO
+  // on BUN_MALFORMED / BUN_UNSUPPORTED, print violation list to stderr.
+  // See project brief for output requirements.
+  //
+  // Print out header
+  //
+  printf("Header:\n");
+  printf("  magic: 0x%08x\n", header.magic);
+  printf("  version: %u.%u\n", header.version_major, header.version_minor);
+  printf("  asset count: %u\n", header.asset_count);
+  printf("  asset table offset: %llu\n", (unsigned long long)header.asset_table_offset);
+  printf("  string table offset: %llu\n", (unsigned long long)header.string_table_offset);
+  printf("  string table size: %llu\n", (unsigned long long)header.string_table_size);
+  printf("  data section offset: %llu\n", (unsigned long long)header.data_section_offset);
+  printf("  data section size: %llu\n", (unsigned long long)header.data_section_size);
 
   //
-  // Print out all errors!
+  // Print out asset details
   //
-
-  rewind(ctx.errors);
-  char error_buffer[10000]; // should be large enough tee hee
-  fgets(error_buffer, sizeof(error_buffer), ctx.errors);
-  fprintf(stderr, "%s", error_buffer);
-  fclose(ctx.errors);
-  // TODO: on BUN_OK, print human-readable summary to stdout.
-  //     on BUN_MALFORMED / BUN_UNSUPPORTED, print violation list to stderr.
-  //     See project brief for output requirements.
-
+  printf("\nAssets:\n");
+  for (u32 i = 0; i < ctx.asset_count; i++) {
+    BunAssetRecord asset = ctx.assets[i];
+    printf("Asset %u:\n", i+1);
+    printf("  Name: %.60s\n", ctx.assets[i].string_table_entry);
+    printf("  Data: %.60s\n", ctx.assets[i].data_table_entry);
+    printf("  name_offset: %u\n", asset.name_offset);
+    printf("  name_length: %u\n", asset.name_length);
+    printf("  data_offset: %llu\n", (unsigned long long)asset.data_offset);
+    printf("  data_size: %llu\n", (unsigned long long)asset.data_size);
+    printf("  uncompressed_size: %llu\n", (unsigned long long)asset.uncompressed_size);
+    printf("  compression: %u\n", asset.compression);
+    printf("  type: %u\n", asset.type);
+    printf("  checksum: %u\n", asset.checksum);
+    printf("  flags: %u\n", asset.flags);
+  }
+  
+  
+  
   bun_close(&ctx);
+  fclose(ctx.errors);
   return result;
 }
