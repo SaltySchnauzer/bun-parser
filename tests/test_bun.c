@@ -100,6 +100,20 @@ START_TEST(bad_offset_alignment) {
 }
 END_TEST
 
+START_TEST(test_overlapping_sections) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/05-overlapping-sections.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_UNSUPPORTED);
+
+    bun_close(&ctx);
+}
+END_TEST
+
 // Assemble a test suite from our tests
 
 static Suite *bun_suite(void) {
@@ -111,6 +125,7 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_header, test_bad_magic);
     tcase_add_test(tc_header, test_unsupported_version);
     tcase_add_test(tc_header, test_bad_offset_alignment);
+    tcase_add_test(tc_header, test_overlapping_sections);
     suite_add_tcase(s, tc_header);
 
     // TODO: add further test cases and TCases (e.g. "assets", "compression")
