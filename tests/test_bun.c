@@ -110,6 +110,7 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_header, test_valid_minimal);
     tcase_add_test(tc_header, test_bad_magic);
     tcase_add_test(tc_header, test_unsupported_version);
+    tcase_add_test(tc_header, test_bad_offset_alignment);
     suite_add_tcase(s, tc_header);
 
     // TODO: add further test cases and TCases (e.g. "assets", "compression")
