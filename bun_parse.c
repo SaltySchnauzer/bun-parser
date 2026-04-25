@@ -140,16 +140,16 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     bun_log_error(ctx, "Malformed file: asset/string section overlaps (asset: %u-%u, string: %u-%u)",
     header->asset_table_offset,
     header->asset_table_offset + asset_table_size,
-    header->data_section_offset,
-    header->data_section_offset+header->data_section_size);
+    header->string_table_offset,
+    header->string_table_offset+header->string_table_size);
     exit_code = BUN_MALFORMED;
   }
 
   if (sections_overlap(header->data_section_offset, header->data_section_size,
   header->string_table_offset, header->string_table_size)) {
     bun_log_error(ctx, "Malformed file: string/data section overlaps (string: %u-%u, data: %u-%u)",
-    header->data_section_offset,
-    header->data_section_offset+header->data_section_size,
+    header->string_table_offset,
+    header->string_table_offset+header->string_table_size,
     header->data_section_offset,
     header->data_section_offset+header->data_section_size);
     exit_code = BUN_MALFORMED;
