@@ -167,7 +167,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     exit_code = BUN_MALFORMED;
   }
 
-  u64 file_size = (u64)ctx-file_size;
+  u64 file_size = (u64)ctx->file_size;
   u64 asset_table_size = (u64)header->asset_count * 48;
 
   // Notes 9,  3:All sections must in their entirety fall within the bounds of the file they are
