@@ -77,8 +77,6 @@ int main(int argc, char *argv[]) {
   for (u32 i = 0; i < ctx.asset_count; i++) {
     BunAssetRecord asset = ctx.assets[i];
     printf("Asset %u:\n", i+1);
-    printf("  Name: %.60s\n", ctx.assets[i].string_table_entry);
-    printf("  Data: %.60s\n", ctx.assets[i].data_table_entry);
     printf("  name_offset: %u\n", asset.name_offset);
     printf("  name_length: %u\n", asset.name_length);
     printf("  data_offset: %llu\n", (unsigned long long)asset.data_offset);
