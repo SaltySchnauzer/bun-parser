@@ -42,6 +42,7 @@ static int sections_overlap(u64 offset_a,u64 size_a,u64 offset_b,u64 size_b){
     return 1;
   }
   return 0;
+}
 //
 // Basic helper function to handle error logging to tempfile.
 //
