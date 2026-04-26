@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #include "bun.h"
 
@@ -38,9 +39,13 @@ static u64 read_u64_le(const u8 *buf, size_t offset) {
 //
 // Basic helper function to handle error logging to tempfile.
 //
-int bun_log_error(BunParseContext *ctx, char *message) {
-  fprintf(ctx->errors, "%s\n", message);
-  return 0;
+int bun_log_error(BunParseContext *ctx, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(ctx->errors, fmt, args);
+    va_end(args);
+    fprintf(ctx->errors, "\n");
+    return 0;
 }
 
 bun_result_t bun_open(const char *path, BunParseContext *ctx) {
@@ -74,9 +79,15 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   // (query: how do we let `main` know that "file was too short"
   // was the exact problem? Where can we put details about the
   // exact validation problem that occurred?)
+
+  // File entered is truncated, with stated size of the file being larger than the
+  // actual file given.
+  
   if (ctx->file_size < (long)BUN_HEADER_SIZE) {
-    bun_log_error(ctx, "Header claims smaller filesize than actual header size.");
-    exit_code = BUN_MALFORMED;
+    bun_log_error(ctx, "Malformed: file too small to contain header (file_size: %llu, header_size: %llu)",
+        ctx->file_size,
+        BUN_HEADER_SIZE);
+    return BUN_MALFORMED;
   }
 
   // slurp the header into `buf`
@@ -107,36 +118,71 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 
   // Notes 4.1,  5: BUN Magic Field must match exactly
   if (header->magic != BUN_MAGIC) {
-    bun_log_error(ctx, "Magic number doesn't match.");
+    bun_log_error(ctx, "Malformed: magic number does not match (expected: 0x%08X, got: 0x%08X)",
+      BUN_MAGIC,
+      header->magic);
     exit_code = BUN_MALFORMED;
   }
   // Notes 4.1,  7: version_major and version_minor must be 1 and 0
   // respectively, other versions are NOT supported
   if (header->version_major != 1 || header->version_minor != 0) {
-    bun_log_error(ctx, "Version numbers don't align.");
+    bun_log_error(ctx, "Unsupported: version not supported (expected: 1/0, got: %u.%u)",
+      header->version_major,
+      header->version_minor);
     exit_code = BUN_UNSUPPORTED;
   }
 
   // Notes 4.1,  3: The three offsets and two sizes must be divisible by 4
 
-  // Checking table offsets
-  // For specific error handling (Like if we wanna say that a specific table
-  // offset is invalid) feel free to split this up
-  if (header->string_table_offset % 4 != 0 ||
-      header->asset_table_offset % 4 != 0 ||
-      header->data_section_offset % 4 != 0) {
-    bun_log_error(ctx, "Table offsets not a multiple of 4.");
+  if (header->asset_table_offset % 4 != 0) {
+    bun_log_error(ctx, "Malformed: asset_table_offset not divisible by 4 (got: %llu)",
+      header->asset_table_offset);
+    exit_code = BUN_MALFORMED;
+  }
+  if (header->string_table_offset % 4 != 0) {
+    bun_log_error(ctx, "Malformed: string_table_offset not divisible by 4 (got: %llu)",
+      header->string_table_offset);
+    exit_code = BUN_MALFORMED;
+  }
+  if (header->data_section_offset % 4 != 0) {
+    bun_log_error(ctx, "Malformed: data_section_offset not divisible by 4 (got: %llu)",
+      header->data_section_offset);
     exit_code = BUN_MALFORMED;
   }
   // Checking for string and data sizes
   // Again, feel free to split this up if we wanna specify if a certain section
   // is malformed
-  if (header->string_table_size % 4 != 0 ||
-      header->data_section_size % 4 != 0) {
-    bun_log_error(ctx, "Table sizes not a multiple of 4.");
+  if (header->string_table_size % 4 != 0) {
+    bun_log_error(ctx, "Malformed: string_table_size not divisible by 4 (got: %llu)",
+      header->string_table_size);
+    exit_code = BUN_MALFORMED;
+  }
+  if (header->data_section_size % 4 != 0) {
+    bun_log_error(ctx, "Malformed: data_section_size not divisible by 4 (got: %llu)",
+      header->data_section_size);
     exit_code = BUN_MALFORMED;
   }
 
+  // Notes 9,  2: All sections must, in their entirety, remain within the bounds
+  // of the file. If the declared start or end of a section falls outside the bounds
+  // of the containing file, that is a parse error.
+
+  u64 file_size = (u64)ctx->file_size;
+  u64 asset_table_size = (u64)header->asset_count * 48;
+
+  if (header->asset_table_offset > file_size - asset_table_size  ||
+  header->string_table_offset > file_size - header->string_table_size ||
+  header->data_section_offset > file_size - header->data_section_size){
+  bun_log_error(ctx,"Malformed file: section exceeds file bounds (asset: %llu-%llu, string: %llu-%llu, data: %llu-%llu, file_size: %llu)",
+    header->asset_table_offset,
+    (header->asset_table_offset + asset_table_size),
+    header->string_table_offset,
+    (header->string_table_offset + header->string_table_size),
+    header->data_section_offset,
+    (header->data_section_offset + header->data_section_size),
+    file_size);
+    exit_code = BUN_MALFORMED;
+  }
   return exit_code;
 }
 
