@@ -137,6 +137,27 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     exit_code = BUN_MALFORMED;
   }
 
+  // Notes 9,  2: All sections must, in their entirety, remain within the bounds
+  // of the file. If the declared start or end of a section falls outside the bounds
+  // of the containing file, that is a parse error.
+
+  u64 file_size = (u64)ctx->file_size;
+  u64 asset_table_size = (u64)header->asset_count * 48;
+
+  if (header->asset_table_offset + asset_table_size > file_size ||
+  header->string_table_offset + header->string_table_size > file_size ||
+  header->data_section_offset + header->data_section_size > file_size){
+  bun_log_error(ctx,"Malformed file: section exceeds file bounds\n "
+        "(asset: %u-%u, string: %u-%u, data: %u-%u, file_size: %u)",
+        header->asset_table_offset,
+        header->asset_table_offset + asset_table_size,
+        header->string_table_offset,
+        header->string_table_offset + header->string_table_size,
+        header->data_section_offset,
+        header->data_section_offset + header->data_section_size,
+        file_size);
+    exit_code = BUN_MALFORMED;
+  }
   return exit_code;
 }
 
