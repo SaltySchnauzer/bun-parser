@@ -36,6 +36,13 @@ static u64 read_u64_le(const u8 *buf, size_t offset) {
 // API implementation
 //
 
+static int sections_overlap(u64 offset_a,u64 size_a,u64 offset_b,u64 size_b){
+  if (!(offset_a + size_a <= offset_b ||
+  offset_b + size_b <= offset_a)) {
+    return 1;
+  }
+  return 0;
+}
 //
 // Basic helper function to handle error logging to tempfile.
 //
@@ -149,9 +156,6 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
       header->data_section_offset);
     exit_code = BUN_MALFORMED;
   }
-  // Checking for string and data sizes
-  // Again, feel free to split this up if we wanna specify if a certain section
-  // is malformed
   if (header->string_table_size % 4 != 0) {
     bun_log_error(ctx, "Malformed: string_table_size not divisible by 4 (got: %llu)",
       header->string_table_size);
@@ -163,12 +167,45 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     exit_code = BUN_MALFORMED;
   }
 
+  u64 file_size = (u64)ctx-file_size;
+  u64 asset_table_size = (u64)header->asset_count * 48;
+
+  // Notes 9,  3:All sections must in their entirety fall within the bounds of the file they are
+  // contained in. If the declared start or end of a section falls outside the bounds
+  // of the containing file, that is a parse error.
+
+  if (sections_overlap(header->asset_table_offset, asset_table_size,
+  header->data_section_offset, header->data_section_size)){
+    bun_log_error(ctx, "Malformed file: asset/data section overlaps (asset: %llu-%llu, data: %llu-%llu)",
+    header->asset_table_offset,
+    header->asset_table_offset + asset_table_size,
+    header->data_section_offset,
+    header->data_section_offset + header->data_section_size);
+    exit_code = BUN_MALFORMED;
+  }
+
+  if (sections_overlap(header->asset_table_offset, asset_table_size,
+  header->string_table_offset, header->string_table_size)){
+    bun_log_error(ctx, "Malformed file: asset/string section overlaps (asset: %llu-%llu, string: %llu-%llu)",
+    header->asset_table_offset,
+    header->asset_table_offset + asset_table_size,
+    header->string_table_offset,
+    header->string_table_offset+header->string_table_size);
+    exit_code = BUN_MALFORMED;
+  }
+
+  if (sections_overlap(header->data_section_offset, header->data_section_size,
+  header->string_table_offset, header->string_table_size)) {
+    bun_log_error(ctx, "Malformed file: string/data section overlaps (string: %llu-%llu, data: %llu-%llu)",
+    header->string_table_offset,
+    header->string_table_offset+header->string_table_size,
+    header->data_section_offset,
+    header->data_section_offset+header->data_section_size);
+    exit_code = BUN_MALFORMED;
+  }  
   // Notes 9,  2: All sections must, in their entirety, remain within the bounds
   // of the file. If the declared start or end of a section falls outside the bounds
   // of the containing file, that is a parse error.
-
-  u64 file_size = (u64)ctx->file_size;
-  u64 asset_table_size = (u64)header->asset_count * 48;
 
   if (header->asset_table_offset > file_size - asset_table_size  ||
   header->string_table_offset > file_size - header->string_table_size ||
