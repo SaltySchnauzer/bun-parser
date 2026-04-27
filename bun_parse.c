@@ -58,7 +58,7 @@ int bun_log_error(BunParseContext *ctx, const char *fmt, ...) {
 bun_result_t bun_open(const char *path, BunParseContext *ctx) {
   // we open the file; seek to the end, to get the size; then jump back to the
   // beginning, ready to start parsing.
-
+  ctx->errors = stderr;
   ctx->file = fopen(path, "rb");
   if (!ctx->file) {
     return BUN_ERR_IO;
@@ -138,6 +138,14 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
       header->version_minor);
     exit_code = BUN_UNSUPPORTED;
   }
+  // Notes 4.1,  7: version_major and version_minor must be 1 and 0
+  // respectively, other versions are NOT supported
+  if (header->version_major != 1 || header->version_minor != 0) {
+    bun_log_error(ctx, "Unsupported: version not supported (expected: 1/0, got: %u.%u)",
+      header->version_major,
+      header->version_minor);
+    return BUN_UNSUPPORTED;
+  }
 
   // Notes 4.1,  3: The three offsets and two sizes must be divisible by 4
 
@@ -207,9 +215,9 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   // of the file. If the declared start or end of a section falls outside the bounds
   // of the containing file, that is a parse error.
 
-  if (header->asset_table_offset > file_size - asset_table_size  ||
-  header->string_table_offset > file_size - header->string_table_size ||
-  header->data_section_offset > file_size - header->data_section_size){
+  if (header->asset_table_offset + asset_table_size > file_size  ||
+  header->string_table_offset + header->string_table_size > file_size ||
+  header->data_section_offset + header->data_section_size > file_size){
   bun_log_error(ctx,"Malformed file: section exceeds file bounds (asset: %llu-%llu, string: %llu-%llu, data: %llu-%llu, file_size: %llu)",
     header->asset_table_offset,
     (header->asset_table_offset + asset_table_size),
