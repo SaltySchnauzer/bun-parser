@@ -3,7 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdarg.h>
-
+#include <ctype.h>
 #include "bun.h"
 
 /**
@@ -225,6 +225,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   u8 buf[BUN_ASSET_RECORD_SIZE];
+  bun_result_t result = BUN_OK;
   //go to start of asset table
   if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
       return BUN_ERR_IO;
@@ -250,48 +251,77 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     ctx->assets[i].type = read_u32_le(buf, 36);
     ctx->assets[i].checksum = read_u32_le(buf, 40);
     ctx->assets[i].flags = read_u32_le(buf, 44);
-
+    ctx->assets[i].name_valid = 1;
+    ctx->assets[i].data_valid = 1;
     //basic asset validation
     BunAssetRecord *asset = &ctx->assets[i];
     //name_length ≠ 0 → asset must have a name
     if (asset->name_length == 0) {
         bun_log_error(ctx, "Malformed: asset %u has zero-length name", i);
-        return BUN_MALFORMED;
+        asset->name_valid = 0;
+        result = BUN_MALFORMED;
     }
     //name within string table → name_offset + name_length must stay inside string section
     if ((u64)asset->name_offset + (u64)asset->name_length > header->string_table_size) {
         bun_log_error(ctx, "Malformed: asset %u name outside string table", i);
-        return BUN_MALFORMED;
+        asset->name_valid = 0;
+        result = BUN_MALFORMED;
     }
+    // valid ASCII 
+    //temporary buffer for full name
+      char *name_buf = malloc(asset->name_length);
+      if (name_buf == NULL) {
+          return BUN_ERR_IO;
+    }
+    // seek to actual name position
+    u64 name_pos = header->string_table_offset + asset->name_offset;
+    if (fseek(ctx->file, (long)name_pos, SEEK_SET) != 0) {
+        free(name_buf);
+        return BUN_ERR_IO;
+    }
+    // Read full name
+    if (fread(name_buf, 1, asset->name_length, ctx->file) != asset->name_length) {
+        free(name_buf);
+        return BUN_ERR_IO;
+    }
+    // Validate ASCII
+    for (u32 k = 0; k < asset->name_length; k++) {
+      unsigned char c = (unsigned char)name_buf[k];
+      if (!isprint(c)) {
+          bun_log_error(ctx, "Malformed: asset %u has non-printable ASCII in name", i);
+          result = BUN_MALFORMED;
+      }
+    }
+    free(name_buf);
     //data within data section → data_offset + data_size must stay inside data section
     if (asset->data_offset + asset->data_size > header->data_section_size) {
         bun_log_error(ctx, "Malformed: asset %u data outside data section", i);
-        return BUN_MALFORMED;
+        result = BUN_MALFORMED;
     }
     //only allowed values (e.g. 0 = none, 1 = RLE)
     if (asset->compression > 2 || asset->compression < 0) {
         bun_log_error(ctx, "Unsupported: asset %u has unknown compression %u", i, asset->compression);
-        return BUN_UNSUPPORTED;
+        result = BUN_UNSUPPORTED;
     }
     //compression unsupported (zlib) → reject if compression = 2
     if (asset->compression == 2) {
         bun_log_error(ctx, "Unsupported: asset %u uses zlib compression", i);
-        return BUN_UNSUPPORTED;
+        result = BUN_UNSUPPORTED;
     }
     //uncompressed_size rule → must be 0 if not compressed
     if (asset->compression == 0 && asset->uncompressed_size != 0) {
         bun_log_error(ctx, "Malformed: asset %u uncompressed_size must be 0 when not compressed", i);
-        return BUN_MALFORMED;
+        result = BUN_MALFORMED;
     }
     //checksum rule → reject if non-zero (unsupported feature)
     if (asset->checksum != 0) {
         bun_log_error(ctx, "Unsupported: asset %u uses checksum validation", i);
-        return BUN_UNSUPPORTED;
+        result =  BUN_UNSUPPORTED;
     }
     //flags valid → only allowed bits (e.g. encrypted/executable)
     if (asset->flags & ~(BUN_FLAG_ENCRYPTED | BUN_FLAG_EXECUTABLE)) {
         bun_log_error(ctx, "Unsupported: asset %u has unsupported flags 0x%08x", i, asset->flags);
-        return BUN_UNSUPPORTED;
+        result = BUN_UNSUPPORTED;
     }
   }
   // TODO: validation 
