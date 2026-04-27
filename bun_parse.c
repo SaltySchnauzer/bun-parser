@@ -128,7 +128,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     bun_log_error(ctx, "Malformed: magic number does not match (expected: 0x%08X, got: 0x%08X)",
       BUN_MAGIC,
       header->magic);
-    return BUN_MALFORMED;
+    exit_code = BUN_MALFORMED;
   }
   // Notes 4.1,  7: version_major and version_minor must be 1 and 0
   // respectively, other versions are NOT supported
@@ -136,7 +136,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     bun_log_error(ctx, "Unsupported: version not supported (expected: 1/0, got: %u.%u)",
       header->version_major,
       header->version_minor);
-    return BUN_UNSUPPORTED;
+    exit_code = BUN_UNSUPPORTED;
   }
 
   // Notes 4.1,  3: The three offsets and two sizes must be divisible by 4
@@ -231,7 +231,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
   //saving all the asset records in ctx 
   ctx->assets = malloc(header->asset_count * BUN_ASSET_RECORD_SIZE);
-  printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
+  // printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
   if (ctx->assets == NULL) {
     return BUN_ERR_IO;
   }
@@ -250,6 +250,49 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     ctx->assets[i].type = read_u32_le(buf, 36);
     ctx->assets[i].checksum = read_u32_le(buf, 40);
     ctx->assets[i].flags = read_u32_le(buf, 44);
+
+    //basic asset validation
+    BunAssetRecord *asset = &ctx->assets[i];
+    //name_length ≠ 0 → asset must have a name
+    if (asset->name_length == 0) {
+        bun_log_error(ctx, "Malformed: asset %u has zero-length name", i);
+        return BUN_MALFORMED;
+    }
+    //name within string table → name_offset + name_length must stay inside string section
+    if ((u64)asset->name_offset + (u64)asset->name_length > header->string_table_size) {
+        bun_log_error(ctx, "Malformed: asset %u name outside string table", i);
+        return BUN_MALFORMED;
+    }
+    //data within data section → data_offset + data_size must stay inside data section
+    if (asset->data_offset + asset->data_size > header->data_section_size) {
+        bun_log_error(ctx, "Malformed: asset %u data outside data section", i);
+        return BUN_MALFORMED;
+    }
+    //only allowed values (e.g. 0 = none, 1 = RLE)
+    if (asset->compression > 2 || asset->compression < 0) {
+        bun_log_error(ctx, "Unsupported: asset %u has unknown compression %u", i, asset->compression);
+        return BUN_UNSUPPORTED;
+    }
+    //compression unsupported (zlib) → reject if compression = 2
+    if (asset->compression == 2) {
+        bun_log_error(ctx, "Unsupported: asset %u uses zlib compression", i);
+        return BUN_UNSUPPORTED;
+    }
+    //uncompressed_size rule → must be 0 if not compressed
+    if (asset->compression == 0 && asset->uncompressed_size != 0) {
+        bun_log_error(ctx, "Malformed: asset %u uncompressed_size must be 0 when not compressed", i);
+        return BUN_MALFORMED;
+    }
+    //checksum rule → reject if non-zero (unsupported feature)
+    if (asset->checksum != 0) {
+        bun_log_error(ctx, "Unsupported: asset %u uses checksum validation", i);
+        return BUN_UNSUPPORTED;
+    }
+    //flags valid → only allowed bits (e.g. encrypted/executable)
+    if (asset->flags & ~(BUN_FLAG_ENCRYPTED | BUN_FLAG_EXECUTABLE)) {
+        bun_log_error(ctx, "Unsupported: asset %u has unsupported flags 0x%08x", i, asset->flags);
+        return BUN_UNSUPPORTED;
+    }
   }
   // TODO: validation 
 
