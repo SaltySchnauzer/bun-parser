@@ -52,6 +52,7 @@ typedef struct {
 } BunHeader;
 
 typedef struct {
+    // Defined by header
     u32 name_offset;
     u32 name_length;
     u64 data_offset;
@@ -61,6 +62,9 @@ typedef struct {
     u32 type;
     u32 checksum;
     u32 flags;
+    // Read-in summaries (60 byte limit + nul)
+    char string_table_entry[61];
+    char data_table_entry[61];
 } BunAssetRecord;
 
 //
@@ -86,6 +90,7 @@ typedef struct {
     u32 asset_count;
     BunAssetRecord *assets;  //stores the parsed assets content
     u32 parsed_asset_count;
+    FILE *errors;           // tmpfile for error logging
     // add further fields here as needed
 } BunParseContext;
 
