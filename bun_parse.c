@@ -326,7 +326,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
   // TODO: validation 
 
-  return BUN_OK;
+  return result;
 }
 
 bun_result_t bun_close(BunParseContext *ctx) {
