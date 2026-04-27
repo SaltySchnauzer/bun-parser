@@ -62,9 +62,6 @@ typedef struct {
     u32 type;
     u32 checksum;
     u32 flags;
-    // Read-in summaries (60 byte limit + nul)
-    char string_table_entry[61];
-    char data_table_entry[61];
 } BunAssetRecord;
 
 //
