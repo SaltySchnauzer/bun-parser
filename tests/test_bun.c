@@ -90,11 +90,11 @@ START_TEST(test_bad_offset_alignment) {
     BunParseContext ctx = {0};
     BunHeader header    = {0};
 
-    bun_result_t r = bun_open(fixture("invalid/03-bad-offset-alighnment.bun"), &ctx);
+    bun_result_t r = bun_open(fixture("invalid/03-bad-offset-alignment.bun"), &ctx);
     ck_assert_int_eq(r, BUN_OK);
 
     r = bun_parse_header(&ctx, &header);
-    ck_assert_int_eq(r, BUN_UNSUPPORTED);
+    ck_assert_int_eq(r, BUN_MALFORMED);
 
     bun_close(&ctx);
 }
@@ -108,7 +108,7 @@ START_TEST(test_overlapping_sections) {
     ck_assert_int_eq(r, BUN_OK);
 
     r = bun_parse_header(&ctx, &header);
-    ck_assert_int_eq(r, BUN_UNSUPPORTED);
+    ck_assert_int_eq(r, BUN_MALFORMED);
 
     bun_close(&ctx);
 }
