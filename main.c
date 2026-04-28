@@ -49,8 +49,9 @@ int main(int argc, char *argv[]) {
   //
   rewind(ctx.errors);
   char error_buffer[10000]; // should be large enough tee hee
-  fgets(error_buffer, sizeof(error_buffer), ctx.errors);
-  fprintf(stderr, "\033[31m%s\033[0m", error_buffer);
+  while (fgets(error_buffer, sizeof(error_buffer), ctx.errors) != NULL) {
+      fprintf(stderr, "\033[31m%s\033[0m", error_buffer);
+  }
   fclose(ctx.errors);
 
   //on BUN_OK, print human-readable summary to stdout.
@@ -76,9 +77,22 @@ int main(int argc, char *argv[]) {
   printf("\nAssets:\n");
   for (u32 i = 0; i < ctx.asset_count; i++) {
     BunAssetRecord asset = ctx.assets[i];
+    //==asset name printing==//
+    char name_buffer[61];    //buffer for storing asset name; re-using for all assets
+    size_t read_size = asset.name_length < 60 ? asset.name_length : 60;
+    name_buffer[read_size] = '\0';
+    u64 name_pos = header.string_table_offset + asset.name_offset;
+    if (fseek(ctx.file, (long)name_pos, SEEK_SET) != 0) {
+      return BUN_ERR_IO;
+    }
+    if (fread(name_buffer, 1, read_size, ctx.file) != read_size) {
+      return BUN_ERR_IO;
+    }
+    //===data printing===//
+    // TODO // 
+    name_buffer[read_size] = '\0';
     printf("Asset %u:\n", i+1);
-    printf("  Name: %.60s\n", ctx.assets[i].string_table_entry);
-    printf("  Data: %.60s\n", ctx.assets[i].data_table_entry);
+    printf("  Name: %s\n", name_buffer);
     printf("  name_offset: %u\n", asset.name_offset);
     printf("  name_length: %u\n", asset.name_length);
     printf("  data_offset: %llu\n", (unsigned long long)asset.data_offset);

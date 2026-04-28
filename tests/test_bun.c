@@ -86,6 +86,34 @@ START_TEST(test_unsupported_version) {
 }
 END_TEST
 
+START_TEST(test_bad_offset_alignment) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/03-bad-offset-alignment.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_overlapping_sections) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/05-overlapping-sections.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+
+    bun_close(&ctx);
+}
+END_TEST
+
 // Assemble a test suite from our tests
 
 static Suite *bun_suite(void) {
@@ -96,9 +124,24 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_header, test_valid_minimal);
     tcase_add_test(tc_header, test_bad_magic);
     tcase_add_test(tc_header, test_unsupported_version);
+    tcase_add_test(tc_header, test_bad_offset_alignment);
+    tcase_add_test(tc_header, test_overlapping_sections);
     suite_add_tcase(s, tc_header);
 
     // TODO: add further test cases and TCases (e.g. "assets", "compression")
+    TCase *tc_asset = tcase_create("asset-tests");
+    tcase_add_test(tc_asset, test_name_past_string_table);
+    tcase_add_test(tc_asset, test_asset_name_not_printable);
+    tcase_add_test(tc_asset, test_overlapping_with_non_printable)
+    tcase-add_test(tc_asset, test_asset_empty_name);
+    tcase_add_test(tc_asset, test_second_asset_empty_name);
+    tcase_add_test(tc_asset, test_asset_name_oob);
+    suite_add_tcase(s, tc_asset);
+
+    Tcase *tc_compression = tcase_create("compression-tests");
+    tcase_add_test(tc_compression, test_rle_zero_count);
+    tcase_add_test(tc_compression, test_rle_bomb);
+    tcase_add_test(tc_compression, test_rle_truncated)
 
     return s;
 }
