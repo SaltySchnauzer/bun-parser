@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,27 +12,21 @@
  * Example helper: convert 4 bytes in `buf`, positioned at `offset`,
  * into a little-endian u32.
  */
+
 static u16 read_u16_le(const u8 *buf, size_t offset) {
-  return (u16)buf[offset]
-     |  (u16)buf[offset + 1] << 8;
+  return (u16)buf[offset] | (u16)buf[offset + 1] << 8;
 }
 
 static u32 read_u32_le(const u8 *buf, size_t offset) {
-  return (u32)buf[offset]
-     | (u32)buf[offset + 1] << 8
-     | (u32)buf[offset + 2] << 16
-     | (u32)buf[offset + 3] << 24;
+  return (u32)buf[offset] | (u32)buf[offset + 1] << 8 |
+         (u32)buf[offset + 2] << 16 | (u32)buf[offset + 3] << 24;
 }
 
 static u64 read_u64_le(const u8 *buf, size_t offset) {
-  return (u64)buf[offset]
-     | (u64)buf[offset + 1] << 8
-     | (u64)buf[offset + 2] << 16
-     | (u64)buf[offset + 3] << 24
-     | (u64)buf[offset + 4] << 32
-     | (u64)buf[offset + 5] << 40
-     | (u64)buf[offset + 6] << 48
-     | (u64)buf[offset + 7] << 56;
+  return (u64)buf[offset] | (u64)buf[offset + 1] << 8 |
+         (u64)buf[offset + 2] << 16 | (u64)buf[offset + 3] << 24 |
+         (u64)buf[offset + 4] << 32 | (u64)buf[offset + 5] << 40 |
+         (u64)buf[offset + 6] << 48 | (u64)buf[offset + 7] << 56;
 }
 //
 // API implementation
@@ -107,6 +103,10 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   //      buf[0], buf[1], buf[2], buf[3],
   //      buf[4], buf[5], buf[6], buf[7]);
 
+  // printf("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+  //      buf[0], buf[1], buf[2], buf[3],
+  //      buf[4], buf[5], buf[6], buf[7]);
+
   // TODO: populate `header` from `buf`.
 
   header->magic = read_u32_le(buf, 0);
@@ -119,7 +119,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   header->string_table_size = read_u64_le(buf, 28);
   header->data_section_offset = read_u64_le(buf, 36);
   header->data_section_size = read_u64_le(buf, 44);
-  
+
   // TODO: validate fields and return BUN_MALFORMED or BUN_UNSUPPORTED
   // as required by the spec. The magic check is a good place to start.
 
@@ -225,27 +225,30 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   u8 buf[BUN_ASSET_RECORD_SIZE];
-  //go to start of asset table
+  bun_result_t exit_code = BUN_OK;
+
+  // go to start of asset table
   if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
-      return BUN_ERR_IO;
+    return BUN_ERR_IO;
   }
-  //saving all the asset records in ctx 
+  // saving all the asset records in ctx
   ctx->assets = malloc(header->asset_count * BUN_ASSET_RECORD_SIZE);
   // printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
   if (ctx->assets == NULL) {
-    return BUN_ERR_IO;
+    exit_code = BUN_ERR_IO;
   }
   ctx->asset_count = header->asset_count;
   //loop through all assets
   for (u32 i = 0; i < header->asset_count; i++) {
-    if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
-        return BUN_ERR_IO;
+    if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) !=
+        BUN_ASSET_RECORD_SIZE) {
+      exit_code = BUN_ERR_IO;
     }
     ctx->assets[i].name_offset = read_u32_le(buf, 0);
     ctx->assets[i].name_length = read_u32_le(buf, 4);
     ctx->assets[i].data_offset = read_u64_le(buf, 8);
-    ctx->assets[i].data_size   = read_u64_le(buf, 16);
-    ctx->assets[i].uncompressed_size = read_u64_le(buf,24);
+    ctx->assets[i].data_size = read_u64_le(buf, 16);
+    ctx->assets[i].uncompressed_size = read_u64_le(buf, 24);
     ctx->assets[i].compression = read_u32_le(buf, 32);
     ctx->assets[i].type = read_u32_le(buf, 36);
     ctx->assets[i].checksum = read_u32_le(buf, 40);
@@ -296,7 +299,92 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
   // TODO: validation 
 
-  return BUN_OK;
+  // Loop through each asset record and parse / validate data
+  for (u32 i = 0; i < header->asset_count; i++) {
+
+    // Process each asset
+
+    u64 data_read = 0;
+
+    BunAssetRecord current_asset = ctx->assets[i];
+    // Note: fseek() 'off' parameter takes a long int.
+    // If we had a UINT64_MAX bit offset, would indicate a ~ 4gb file, which is
+    // super large But don't think the file size should be that big?
+    if (fseek(ctx->file,
+              header->data_section_offset + current_asset.data_offset,
+              SEEK_SET) != 0) {
+      bun_log_error(ctx, "Error when trying to move FP in data section");
+      exit_code = BUN_ERR_IO;
+    }
+    // RLE Compression Checks
+    if (current_asset.compression == 1) {
+      u64 uncompressed_read = 0;
+
+      // Notes 8.1: If data size isn't an even number of bytes, then the data is
+      // invalid Since (count, pair) is an even number of bytes
+      if (current_asset.data_size % 2 != 0) {
+        exit_code = BUN_MALFORMED;
+        bun_log_error(
+            ctx, "Malformed: RLE Data Size is not an even number (got %llu)",
+            current_asset.data_size);
+      }
+      BunRlePair current_pair;
+
+      while (data_read < current_asset.data_size) {
+        // Assuming that each RLE pair is a (u8 count, u8 value) pair.
+        if (fread(&current_pair, sizeof(current_pair), 1, ctx->file) != 1) {
+          exit_code = BUN_ERR_IO;
+          bun_log_error(ctx, "IO Error: Could not read BUN file successfully");
+          return exit_code;
+        };
+
+        data_read += 2;
+
+        // Notes 8.2: Count must not be 0
+        if (current_pair.count == 0) {
+          exit_code = BUN_MALFORMED;
+          bun_log_error(ctx, "Malformed: RLE count field must not be 0");
+          continue;
+        }
+
+        // Check for if the count > uncomp size
+        if (current_pair.count > current_asset.uncompressed_size) {
+          exit_code = BUN_MALFORMED;
+          bun_log_error(ctx,
+                        "Malformed: RLE count field exceeds the uncompressed "
+                        "size (got: %u)",
+                        current_pair.count);
+          continue;
+        }
+
+        // Check to ensure we dont exceed the specified uncompressed size
+        if (uncompressed_read >
+            current_asset.uncompressed_size - current_pair.count) {
+          exit_code = BUN_MALFORMED;
+          bun_log_error(ctx,
+                        "Malformed: Uncompressed size does not match specified "
+                        "size (got %llu)",
+                        current_asset.uncompressed_size);
+          continue;
+        }
+
+        uncompressed_read += current_pair.count;
+
+        // TODO: Do we expand and then write, or store these pairs somewhere ;
+        // if its valid then we write up to 60 bytes.
+      }
+      // Check for truncation
+      if (uncompressed_read < current_asset.uncompressed_size) {
+        exit_code = BUN_MALFORMED;
+        bun_log_error(ctx,
+                      "Uncompressed size is less than the expected size. "
+                      "Expected: %lu | Got: %lu",
+                      current_asset.uncompressed_size, uncompressed_read);
+      }
+    }
+  }
+
+  return exit_code;
 }
 
 bun_result_t bun_close(BunParseContext *ctx) {
