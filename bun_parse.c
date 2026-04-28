@@ -128,15 +128,15 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     bun_log_error(ctx, "Malformed: magic number does not match (expected: 0x%08X, got: 0x%08X)",
       BUN_MAGIC,
       header->magic);
-    exit_code = BUN_MALFORMED;
+    return BUN_MALFORMED;
   }
   // Notes 4.1,  7: version_major and version_minor must be 1 and 0
   // respectively, other versions are NOT supported
   if (header->version_major != 1 || header->version_minor != 0) {
-    bun_log_error(ctx, "Unsupported: version not supported (expected: 1/0, got: %u.%u)",
+    bun_log_error(ctx, "Unsupported: version not supported (expected: 1.0, got: %u.%u)",
       header->version_major,
       header->version_minor);
-    exit_code = BUN_UNSUPPORTED;
+    return BUN_UNSUPPORTED;
   }
 
   // Notes 4.1,  3: The three offsets and two sizes must be divisible by 4
