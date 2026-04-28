@@ -243,7 +243,9 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       // invalid Since (count, pair) is an even number of bytes
       if (current_asset.data_size % 2 != 0) {
         exit_code = BUN_MALFORMED;
-        bun_log_error(ctx, "RLE Data Size is not an even number");
+        bun_log_error(
+            ctx, "Malformed: RLE Data Size is not an even number (got %llu)",
+            current_asset.data_size);
       }
       BunRlePair current_pair;
 
@@ -251,7 +253,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         // Assuming that each RLE pair is a (u8 count, u8 value) pair.
         if (fread(&current_pair, sizeof(current_pair), 1, ctx->file) != 1) {
           exit_code = BUN_ERR_IO;
-          bun_log_error(ctx, "Could not read BUN file successfully");
+          bun_log_error(ctx, "IO Error: Could not read BUN file successfully");
           return exit_code;
         };
 
@@ -260,19 +262,32 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         // Notes 8.2: Count must not be 0
         if (current_pair.count == 0) {
           exit_code = BUN_MALFORMED;
-          bun_log_error(ctx, "RLE count field must not be 0");
+          bun_log_error(ctx, "Malformed: RLE count field must not be 0");
+          continue;
         }
+
+        // Check for if the count > uncomp size
+        if (current_pair.count > current_asset.uncompressed_size) {
+          exit_code = BUN_MALFORMED;
+          bun_log_error(ctx,
+                        "Malformed: RLE count field exceeds the uncompressed "
+                        "size (got: %u)",
+                        current_pair.count);
+          continue;
+        }
+
         // Check to ensure we dont exceed the specified uncompressed size
         if (uncompressed_read >
             current_asset.uncompressed_size - current_pair.count) {
           exit_code = BUN_MALFORMED;
           bun_log_error(ctx,
-                        "Uncompressed size does not match specified size %llu",
+                        "Malformed: Uncompressed size does not match specified "
+                        "size (got %llu)",
                         current_asset.uncompressed_size);
+          continue;
         }
 
         uncompressed_read += current_pair.count;
-        printf("Test: Current Read is %lu\n", uncompressed_read);
 
         // TODO: Do we expand and then write, or store these pairs somewhere ;
         // if its valid then we write up to 60 bytes.
