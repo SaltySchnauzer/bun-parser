@@ -227,9 +227,9 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   u8 buf[BUN_ASSET_RECORD_SIZE];
   bun_result_t result = BUN_OK;
   //go to start of asset table
-  if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
-      return BUN_ERR_IO;
-  }
+  // if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
+  //     return BUN_ERR_IO;
+  // }
   //saving all the asset records in ctx 
   ctx->assets = malloc(header->asset_count * BUN_ASSET_RECORD_SIZE);
   // printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
@@ -239,6 +239,11 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   ctx->asset_count = header->asset_count;
   //loop through all assets
   for (u32 i = 0; i < header->asset_count; i++) {
+    u64 record_pos = header->asset_table_offset + ((u64)i * BUN_ASSET_RECORD_SIZE);
+
+    if (fseek(ctx->file, (long)record_pos, SEEK_SET) != 0) {
+        return BUN_ERR_IO;
+    }
     if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
         return BUN_ERR_IO;
     }

@@ -109,7 +109,11 @@ int main(int argc, char *argv[]) {
       printf("  Data: ");
       for (size_t j = 0; j < read_size_data; j++) {
         unsigned char b = (unsigned char)data_buffer[j];
-        printf("%c", b);   
+        if (b >= 32 && b <= 126) {
+          printf("%c", b);
+        } else {
+          printf(".");
+        }
       }
     }
     printf("\n");
