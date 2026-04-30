@@ -27,8 +27,6 @@ int main(int argc, char *argv[]) {
 
   result = bun_parse_header(&ctx, &header);
   if (result != BUN_OK) {
-    // bun_parse_header returns a code; printing the specifics is up to
-    // you -- you may want to extend the API to return error details
     fprintf(stderr, "\033[31mError: header invalid or unsupported (code %d)\033[0m\n", result);
   }
 
@@ -97,7 +95,7 @@ int main(int argc, char *argv[]) {
     if (asset.data_valid){
       //===data printing===//
       char data_buffer[61];  
-      size_t read_size_data = asset.data_size < 60 ? asset.data_size : 60;
+      size_t read_size_data = (size_t)(asset.data_size < 60 ? asset.data_size : 60);
       u64 data_pos = header.data_section_offset + asset.data_offset;
       if (fseek(ctx.file, (long)data_pos, SEEK_SET) != 0) {
         return BUN_ERR_IO;
@@ -105,18 +103,45 @@ int main(int argc, char *argv[]) {
       if (fread(data_buffer, 1, read_size_data, ctx.file) != read_size_data) {
         return BUN_ERR_IO;
       }
-      data_buffer[read_size_data] = '\0';
-      printf("  Data: ");
-      for (size_t j = 0; j < read_size_data; j++) {
-        unsigned char b = (unsigned char)data_buffer[j];
-        if (b >= 32 && b <= 126) {
-          printf("%c", b);
-        } else {
-          printf("\033[33m\\%x\033[0m", b);
-        }
+
+      if (asset.compression == 0) {
+          // uncompressed — print directly
+          printf("  Data: ");
+          size_t printed = 0;
+          for (size_t j = 0; j < read_size_data && printed < 60; j++) {
+              unsigned char b = (unsigned char)data_buffer[j];
+              if (b >= 32 && b <= 126) {
+                  printf("%c", b);
+                  printed++;
+              } else {
+                  printf("%02x", b);
+                  printed += 2;
+              }
+          }
+        } 
+      else if (asset.compression == 1) {
+        // Compressed - Gets uncompressed before printing
+          printf("  Data (RLE uncompressed): ");
+          size_t expanded = 0;
+          for (size_t j = 0; j + 1 < read_size_data && expanded < 60; j += 2) {
+              unsigned char count = (unsigned char)data_buffer[j];
+              unsigned char b = (unsigned char)data_buffer[j + 1];
+              for (unsigned char k = 0; k < count && expanded < 60; k++) {
+                  if (b >= 32 && b <= 126) {
+                    printf("%c", b);
+                  } else {
+                    printf("%x", b);
+                  }
+                expanded++;
+              }
+          }
+      }else{
+          printf("Unsupported Compression");
       }
+      printf("\n");
+    }else{
+      printf("  Data: INVALID\n");
     }
-    printf("\n");
   }
   bun_close(&ctx);
   return result;
