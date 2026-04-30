@@ -123,12 +123,12 @@ int main(int argc, char *argv[]) {
           size_t expanded = 0;
           for (size_t j = 0; j + 1 < read_size_data && expanded < 60; j += 2) {
               unsigned char count = (unsigned char)data_buffer[j];
-              unsigned char value = (unsigned char)data_buffer[j + 1];
+              unsigned char b = (unsigned char)data_buffer[j + 1];
               for (unsigned char k = 0; k < count && expanded < 60; k++) {
-                  if (value >= 32 && value <= 126) {
-                    printf("%c", value);
+                  if (b >= 32 && b <= 126) {
+                    printf("%c", b);
                   } else {
-                    printf("%x", value);
+                    printf("%x", b);
                   }
                 expanded++;
               }
