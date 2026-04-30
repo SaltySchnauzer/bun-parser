@@ -4,3 +4,4 @@
 *.zip
 bun_parser
 tests/test_runner
+*.notazip
