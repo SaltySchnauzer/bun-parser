@@ -403,9 +403,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         }
 
         uncompressed_read += current_pair.count;
-
-        // TODO: Do we expand and then write, or store these pairs somewhere ;
-        // if its valid then we write up to 60 bytes.
       }
       // Check for truncation
       if (uncompressed_read < current_asset.uncompressed_size) {
