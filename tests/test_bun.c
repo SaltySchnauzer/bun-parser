@@ -163,6 +163,7 @@ START_TEST(test_asset_name_oob) {
 
     bun_close(&ctx);
 }
+END_TEST
 
 START_TEST(test_asset_empty_name) {
     BunParseContext ctx = {0};
@@ -179,6 +180,7 @@ START_TEST(test_asset_empty_name) {
 
     bun_close(&ctx);
 }
+END_TEST
 
 START_TEST(test_second_asset_empty_name) {
     BunParseContext ctx = {0};
@@ -195,6 +197,7 @@ START_TEST(test_second_asset_empty_name) {
 
     bun_close(&ctx);
 }
+END_TEST
 
 START_TEST(test_asset_name_not_printable) {
     BunParseContext ctx = {0};
@@ -211,7 +214,41 @@ START_TEST(test_asset_name_not_printable) {
 
     bun_close(&ctx);
 }
+END_TEST
 
+START_TEST(test_truncated_file) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/08-truncated-file.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);  
+
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_misaligned_section_size) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/09-misaligned-section-size.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);  
+
+    bun_close(&ctx);
+}
+END_TEST
 
 START_TEST(test_overlapping_with_non_printable) {
     BunParseContext ctx = {0};
@@ -228,6 +265,7 @@ START_TEST(test_overlapping_with_non_printable) {
 
     bun_close(&ctx);
 }
+END_TEST
 // Tests for compression parsing
 
 START_TEST(test_rle_zero_count) {
@@ -295,6 +333,8 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_header, test_section_past_eof);
     tcase_add_test(tc_header, test_bad_offset_alignment);
     tcase_add_test(tc_header, test_overlapping_sections);
+    tcase_add_test(tc_header, test_truncated_file);
+    tcase_add_test(tc_header, test_misaligned_section_size);
     suite_add_tcase(s, tc_header);
 
     // Asset Sub Suite
