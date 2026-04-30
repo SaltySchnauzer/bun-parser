@@ -139,6 +139,8 @@ int main(int argc, char *argv[]) {
           printf("Unsupported Compression");
       }
       printf("\n");
+    }else{
+      printf("  Data: INVALID\n");
     }
   }
   bun_close(&ctx);
