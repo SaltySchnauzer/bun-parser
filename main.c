@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     if (asset.data_valid){
       //===data printing===//
       char data_buffer[61];  
-      size_t read_size_data = asset.data_size < 60 ? asset.data_size : 60;
+      size_t read_size_data = (size_t)(asset.data_size < 60 ? asset.data_size : 60);
       u64 data_pos = header.data_section_offset + asset.data_offset;
       if (fseek(ctx.file, (long)data_pos, SEEK_SET) != 0) {
         return BUN_ERR_IO;
@@ -109,12 +109,15 @@ int main(int argc, char *argv[]) {
       if (asset.compression == 0) {
           // uncompressed — print directly
           printf("  Data: ");
-          for (size_t j = 0; j < read_size_data; j++) {
+          size_t printed = 0;
+          for (size_t j = 0; j < read_size_data && printed < 60; j++) {
               unsigned char b = (unsigned char)data_buffer[j];
               if (b >= 32 && b <= 126) {
                   printf("%c", b);
+                  printed++;
               } else {
-                  printf("%x", b);
+                  printf("%02x", b);
+                  printed += 2;
               }
           }
         } 
