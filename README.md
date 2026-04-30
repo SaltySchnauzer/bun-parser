@@ -17,45 +17,6 @@ This parser reads `.bun` files, validates them against the BUN 1.0 specification
 
 ---
 
-## Building
-
-### Requirements
-
-- GCC with C11 support
-- `check` testing library (`brew install check` on macOS, `apt install check` on Linux)
-
-### Build
-
-```bash
-make
-```
-
-### Build with AddressSanitizer (recommended for development)
-
-```bash
-make asan
-```
-
-### Build with coverage instrumentation
-
-```bash
-make coverage
-```
-
----
-
-## Usage
-
-```bash
-./bun_parser <file.bun>
-```
-
-### Example
-
-```bash
-./bun_parser tests/fixtures/valid/01-minimal.bun
-```
-
 ### Output
 
 ```
@@ -98,13 +59,6 @@ Asset 0:
 
 ```bash
 make test
-```
-
-### Test coverage
-
-```bash
-make coverage
-gcov bun_parse.c
 ```
 
 ---
@@ -158,22 +112,6 @@ Sections after the header may appear in any order, must not overlap, and must fi
 
 ---
 
-## Compression
-
-### RLE (compression = 1)
-
-Data is stored as `(count, value)` byte pairs. Each pair expands to `count` copies of `value`.
-
-- `data_size` must be even (whole number of pairs)
-- `count` must not be zero
-- Total expanded size must exactly match `uncompressed_size`
-
-### zlib (compression = 2)
-
-Not supported — parser returns `BUN_UNSUPPORTED`.
-
----
-
 ## Validation Rules
 
 The parser checks all of the following, reporting errors to stderr:
@@ -211,12 +149,3 @@ The parser checks all of the following, reporting errors to stderr:
         ├── valid/      # Valid BUN files for positive tests
         └── invalid/    # Malformed BUN files for negative tests
 ```
-
----
-
-## Known Limitations
-
-- Files larger than ~2GB may cause issues due to `ftell` returning a `long`
-- zlib compression (type 2) is not supported
-- CRC-32 checksum validation is not supported
-- Data and name output is capped at 60 bytes/characters for display purposes
