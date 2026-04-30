@@ -148,6 +148,86 @@ START_TEST(test_name_past_string_table) {
 }
 END_TEST
 
+START_TEST(test_asset_name_oob) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/12-asset-name-oob.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);  
+
+    bun_close(&ctx);
+}
+
+START_TEST(test_asset_empty_name) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/13-asset-empty-name.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);  
+
+    bun_close(&ctx);
+}
+
+START_TEST(test_second_asset_empty_name) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/11-second-asset-empty-name.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);  
+
+    bun_close(&ctx);
+}
+
+START_TEST(test_asset_name_not_printable) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/07-asset-name-nonprintable.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);  
+
+    bun_close(&ctx);
+}
+
+
+START_TEST(test_overlapping_with_non_printable) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/10-overlapping-with-nonprintable.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);  
+
+    bun_close(&ctx);
+}
 // Tests for compression parsing
 
 START_TEST(test_rle_zero_count) {
@@ -175,7 +255,7 @@ START_TEST(test_rle_bomb) {
     ck_assert_int_eq(r, BUN_OK);
 
     r = bun_parse_header(&ctx, &header);
-    ck_assert_int_eq(r, BUN_OK);
+    ck_assert_int_eq(r, BUN_MALFORMED);
 
     r = bun_parse_assets(&ctx, &header);
     ck_assert_int_eq(r, BUN_MALFORMED);  
@@ -184,12 +264,30 @@ START_TEST(test_rle_bomb) {
 }
 END_TEST
 
+START_TEST(test_rle_truncated) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/16-rle-truncated.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);  
+
+    bun_close(&ctx);
+}
+END_TEST
+
+
 // Assemble a test suite from our tests
 
 static Suite *bun_suite(void) {
     Suite *s = suite_create("bun-suite");
 
-    // Note that "TCase" is more like a sub-suite than a single test case
+    // Header suite
     TCase *tc_header = tcase_create("header-tests");
     tcase_add_test(tc_header, test_valid_minimal);
     tcase_add_test(tc_header, test_bad_magic);
@@ -199,37 +297,32 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_header, test_overlapping_sections);
     suite_add_tcase(s, tc_header);
 
-    // TODO: add further test cases and TCases (e.g. "assets", "compression")
+    // Asset Sub Suite
     TCase *tc_asset = tcase_create("asset-tests");
     tcase_add_test(tc_asset, test_name_past_string_table);
-    tcase_add_test(tc_asset, test_asset_name_not_printable);
-    tcase_add_test(tc_asset, test_overlapping_with_non_printable)
-    tcase-add_test(tc_asset, test_asset_empty_name);
-    tcase_add_test(tc_asset, test_second_asset_empty_name);
+    tcase_add_test(tc_asset, test_asset_empty_name);
     tcase_add_test(tc_asset, test_asset_name_oob);
-    suite_add_tcase(s, tc_asset);
-
-    Tcase *tc_compression = tcase_create("compression-tests");
-    tcase_add_test(tc_compression, test_rle_zero_count);
-    tcase_add_test(tc_compression, test_rle_bomb);
-    tcase_add_test(tc_compression, test_rle_truncated)
-
-    TCase *tc_asset = tcase_create("asset-tests");
-    tcase_add_test(tc_asset, test_name_past_string_table);
-        suite_add_tcase(s, tc_asset);
-/*
+    tcase_add_test(tc_asset, test_second_asset_empty_name);
     tcase_add_test(tc_asset, test_asset_name_not_printable);
     tcase_add_test(tc_asset, test_overlapping_with_non_printable);
-    tcase-add_test(tc_asset, test_asset_empty_name);
-    tcase_add_test(tc_asset, test_second_asset_empty_name);
-    tcase_add_test(tc_asset, test_asset_name_oob);
-*/
+    suite_add_tcase(s, tc_asset);
 
+    // Compression Sub Suite
     TCase *tc_compression = tcase_create("compression-tests");
     tcase_add_test(tc_compression, test_rle_zero_count);
     tcase_add_test(tc_compression, test_rle_bomb);
-    //tcase_add_test(tc_compression, test_rle_truncated);
+    tcase_add_test(tc_compression, test_rle_truncated);
     suite_add_tcase(s, tc_compression);
+/*
+
+
+
+    TCase *tc_asset = tcase_create("asset-tests");
+        suite_add_tcase(s, tc_asset);
+    tcase_add_test(tc_asset, test_asset_name_not_printable);
+    tcase_add_test(tc_asset, test_overlapping_with_non_printable);
+*/
+
     return s;
 }
 

@@ -233,7 +233,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
   // saving all the asset records in ctx
   ctx->assets = malloc((size_t)header->asset_count * sizeof(BunAssetRecord));  
-  printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
   if (ctx->assets == NULL) {
     exit_code = BUN_ERR_IO;
   }
@@ -275,7 +274,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     //data within data section → data_offset + data_size must stay inside data section
     if (asset->data_offset + asset->data_size > header->data_section_size) {
         bun_log_error(ctx, "Malformed: asset %u data outside data section", i);
-        return BUN_MALFORMED;
         asset->name_valid = 0;
         exit_code = BUN_MALFORMED;
     }
@@ -283,18 +281,18 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     //temporary buffer for full name
       char *name_buf = malloc(asset->name_length);
       if (name_buf == NULL) {
-          exit_code = BUN_ERR_IO;
+          return BUN_ERR_IO;
     }
     // seek to actual name position
     u64 name_pos = header->string_table_offset + asset->name_offset;
     if (fseek(ctx->file, (long)name_pos, SEEK_SET) != 0) {
         free(name_buf);
-        exit_code = BUN_ERR_IO;
+        return BUN_MALFORMED;
     }
     // Read full name
     if (fread(name_buf, 1, asset->name_length, ctx->file) != asset->name_length) {
         free(name_buf);
-        exit_code = BUN_ERR_IO;
+        return BUN_MALFORMED;
     }
     // Validate ASCII
     for (u32 k = 0; k < asset->name_length; k++) {
