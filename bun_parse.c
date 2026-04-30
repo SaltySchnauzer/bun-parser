@@ -234,7 +234,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   // saving all the asset records in ctx
   ctx->assets = malloc((size_t)header->asset_count * sizeof(BunAssetRecord)); 
   if (ctx->assets == NULL) {
-    exit_code = BUN_ERR_IO;
+    return BUN_ERR_IO;
   }
   ctx->asset_count = header->asset_count;
   //loop through all assets
@@ -260,53 +260,54 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     ctx->assets[i].data_valid = 1;
     //basic asset validation
     BunAssetRecord *asset = &ctx->assets[i];
-    //name_length ≠ 0 → asset must have a name
+    //asset must have a name
     if (asset->name_length == 0) {
         bun_log_error(ctx, "Malformed: asset %u has zero-length name", i);
         asset->name_valid = 0;
         exit_code = BUN_MALFORMED;
     }
-    //name within string table → name_offset + name_length must stay inside string section
+    //name within string table: name_offset + name_length must stay inside string section
     if ((u64)asset->name_offset + (u64)asset->name_length > header->string_table_size) {
+        asset->name_valid = 0;
         bun_log_error(ctx, "Malformed: asset %u name outside string table", i);
         asset->data_valid = 0;
         exit_code =  BUN_MALFORMED;
     }
-    //data within data section → data_offset + data_size must stay inside data section
-    if (asset->data_offset + asset->data_size > header->data_section_size) {
-        bun_log_error(ctx, "Malformed: asset %u data outside data section", i);
-        asset->name_valid = 0;
-        exit_code = BUN_MALFORMED;
-    }
-    // valid ASCII 
-    //temporary buffer for full name
-      char *name_buf = malloc(asset->name_length);
-      if (name_buf == NULL) {
-          return BUN_ERR_IO;
-    }
-    // seek to actual name position
-    u64 name_pos = header->string_table_offset + asset->name_offset;
-    if (fseek(ctx->file, (long)name_pos, SEEK_SET) != 0) {
-        free(name_buf);
-        return BUN_MALFORMED;
-    }
-    // Read full name
-    if (fread(name_buf, 1, asset->name_length, ctx->file) != asset->name_length) {
-        free(name_buf);
-        return BUN_MALFORMED;
-    }
-    // Validate ASCII
-    for (u32 k = 0; k < asset->name_length; k++) {
-      unsigned char c = (unsigned char)name_buf[k];
-      if (!isprint(c)) {
-          bun_log_error(ctx, "Malformed: asset %u has non-printable ASCII in name", i);
-          exit_code = BUN_MALFORMED;
+    // valid ASCII only if name is valid
+    if (asset->name_valid) {
+      //temporary buffer for full name
+        char *name_buf = malloc(asset->name_length);
+        if (name_buf == NULL) {
+            return BUN_ERR_IO;
       }
+      // seek to actual name position
+      u64 name_pos = header->string_table_offset + asset->name_offset;
+      if (fseek(ctx->file, (long)name_pos, SEEK_SET) != 0) {
+          bun_log_error(ctx, "Malformed: asset %u could not seek to name position", i);
+          free(name_buf);
+          return BUN_MALFORMED;
+      }
+      // Read full name
+      if (fread(name_buf, 1, asset->name_length, ctx->file) != asset->name_length) {
+          bun_log_error(ctx, "Malformed: asset %u name could not be fully read (truncated or out of bounds)", i);
+          free(name_buf);
+          return BUN_MALFORMED;
+      }
+      // Validate ASCII
+      for (u32 k = 0; k < asset->name_length; k++) {
+        unsigned char c = (unsigned char)name_buf[k];
+        if (!isprint(c)) {
+            asset->name_valid = 0;
+            bun_log_error(ctx, "Malformed: asset %u has non-printable ASCII in name", i);
+            exit_code = BUN_MALFORMED;
+        }
+      }
+      free(name_buf);
     }
-    free(name_buf);
-    //data within data section → data_offset + data_size must stay inside data section
+    //data within data section: data_offset + data_size must stay inside data section
     if (asset->data_offset + asset->data_size > header->data_section_size) {
         bun_log_error(ctx, "Malformed: asset %u data outside data section", i);
+        asset->data_valid = 0;
         exit_code = BUN_MALFORMED;
     }
     //only allowed values (e.g. 0 = none, 1 = RLE)
@@ -314,22 +315,17 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         bun_log_error(ctx, "Unsupported: asset %u has unknown compression %u", i, asset->compression);
         exit_code = BUN_UNSUPPORTED;
     }
-    //compression unsupported (zlib) → reject if compression = 2
+    //compression unsupported (zlib): reject if compression = 2
     if (asset->compression == 2) {
         bun_log_error(ctx, "Unsupported: asset %u uses zlib compression", i);
         exit_code = BUN_UNSUPPORTED;
     }
-    //uncompressed_size rule → must be 0 if not compressed
-    if (asset->compression == 0 && asset->uncompressed_size != 0) {
-        bun_log_error(ctx, "Malformed: asset %u uncompressed_size must be 0 when not compressed", i);
-        exit_code = BUN_MALFORMED;
-    }
-    //checksum rule → reject if non-zero (unsupported feature)
+    //checksum rule: reject if non-zero (unsupported feature)
     if (asset->checksum != 0) {
         bun_log_error(ctx, "Unsupported: asset %u uses checksum validation", i);
         exit_code =  BUN_UNSUPPORTED;
     }
-    //flags valid → only allowed bits (e.g. encrypted/executable)
+    //flags valid: only allowed bits (e.g. encrypted/executable)
     if (asset->flags & ~(BUN_FLAG_ENCRYPTED | BUN_FLAG_EXECUTABLE)) {
         bun_log_error(ctx, "Unsupported: asset %u has unsupported flags 0x%08x", i, asset->flags);
         exit_code = BUN_UNSUPPORTED;
@@ -347,11 +343,33 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     if (fseek(ctx->file,
               header->data_section_offset + current_asset.data_offset,
               SEEK_SET) != 0) {
-      bun_log_error(ctx, "Error when trying to move FP in data section");
+      bun_log_error(ctx, "Error: asset %u when trying to move FP in data section", i);
       exit_code = BUN_ERR_IO;
     }
+    // Validate uncompressed data can be fully read //
+    if (exit_code != BUN_ERR_IO && current_asset.compression == 0 && current_asset.data_valid) {
+        u64 remaining = current_asset.data_size;
+        unsigned char tmp[64];
+
+        while (remaining > 0) {
+            size_t chunk = remaining > sizeof(tmp)
+                ? sizeof(tmp)
+                : (size_t)remaining;
+
+            size_t got = fread(tmp, 1, chunk, ctx->file);
+
+            if (got != chunk) {
+                bun_log_error(ctx, "Malformed: asset %u data could not be fully read", i);
+                exit_code = BUN_MALFORMED;
+                break;
+            }
+
+            remaining -= got;
+        }
+    }
+
     // RLE Compression Checks
-    if (current_asset.compression == 1) {
+    if (current_asset.compression == 1 && current_asset.data_valid) {
       u64 uncompressed_read = 0;
 
       // Notes 8.1: If data size isn't an even number of bytes, then the data is
