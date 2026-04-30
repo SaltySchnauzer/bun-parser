@@ -132,7 +132,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   }
   // Notes 4.1,  7: version_major and version_minor must be 1 and 0
   // respectively, other versions are NOT supported
-  if (header->version_major != 1 || header->version_minor != 0) {
+  if (header->version_major != BUN_VERSION_MAJOR || header->version_minor != BUN_VERSION_MINOR) {
     bun_log_error(ctx, "Unsupported: version not supported (expected: 1.0, got: %u.%u)",
       header->version_major,
       header->version_minor);
