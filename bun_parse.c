@@ -232,8 +232,8 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     return BUN_ERR_IO;
   }
   // saving all the asset records in ctx
-  ctx->assets = malloc(header->asset_count * BUN_ASSET_RECORD_SIZE);
-  // printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
+  ctx->assets = malloc((size_t)header->asset_count * sizeof(BunAssetRecord));  
+  printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
   if (ctx->assets == NULL) {
     exit_code = BUN_ERR_IO;
   }
@@ -335,12 +335,9 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         bun_log_error(ctx, "Unsupported: asset %u has unsupported flags 0x%08x", i, asset->flags);
         exit_code = BUN_UNSUPPORTED;
     }
-  }
   // TODO: validation 
 
   // Loop through each asset record and parse / validate data
-  for (u32 i = 0; i < header->asset_count; i++) {
-
     // Process each asset
 
     u64 data_read = 0;
