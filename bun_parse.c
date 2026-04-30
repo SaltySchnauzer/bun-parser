@@ -310,7 +310,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         exit_code = BUN_MALFORMED;
     }
     //only allowed values (e.g. 0 = none, 1 = RLE)
-    if (asset->compression > 2 || asset->compression < 0) {
+    if (asset->compression >= 2) {
         bun_log_error(ctx, "Unsupported: asset %u has unknown compression %u", i, asset->compression);
         exit_code = BUN_UNSUPPORTED;
     }
