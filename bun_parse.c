@@ -233,8 +233,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
   // saving all the asset records in ctx
   ctx->assets = malloc((size_t)header->asset_count * sizeof(BunAssetRecord)); 
-  // debug line for asset record size 
-  // printf("size of asset rec %lu\n", sizeof(BunAssetRecord));
   if (ctx->assets == NULL) {
     exit_code = BUN_ERR_IO;
   }
