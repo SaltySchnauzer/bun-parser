@@ -200,6 +200,19 @@ static Suite *bun_suite(void) {
     suite_add_tcase(s, tc_header);
 
     // TODO: add further test cases and TCases (e.g. "assets", "compression")
+    TCase *tc_asset = tcase_create("asset-tests");
+    tcase_add_test(tc_asset, test_name_past_string_table);
+    tcase_add_test(tc_asset, test_asset_name_not_printable);
+    tcase_add_test(tc_asset, test_overlapping_with_non_printable)
+    tcase-add_test(tc_asset, test_asset_empty_name);
+    tcase_add_test(tc_asset, test_second_asset_empty_name);
+    tcase_add_test(tc_asset, test_asset_name_oob);
+    suite_add_tcase(s, tc_asset);
+
+    Tcase *tc_compression = tcase_create("compression-tests");
+    tcase_add_test(tc_compression, test_rle_zero_count);
+    tcase_add_test(tc_compression, test_rle_bomb);
+    tcase_add_test(tc_compression, test_rle_truncated)
 
     TCase *tc_asset = tcase_create("asset-tests");
     tcase_add_test(tc_asset, test_name_past_string_table);
