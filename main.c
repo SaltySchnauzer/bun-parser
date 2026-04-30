@@ -27,8 +27,6 @@ int main(int argc, char *argv[]) {
 
   result = bun_parse_header(&ctx, &header);
   if (result != BUN_OK) {
-    // bun_parse_header returns a code; printing the specifics is up to
-    // you -- you may want to extend the API to return error details
     fprintf(stderr, "\033[31mError: header invalid or unsupported (code %d)\033[0m\n", result);
   }
 
@@ -122,6 +120,7 @@ int main(int argc, char *argv[]) {
           }
         } 
       else if (asset.compression == 1) {
+        // Compressed - Gets uncompressed before printing
           printf("  Data (RLE uncompressed): ");
           size_t expanded = 0;
           for (size_t j = 0; j + 1 < read_size_data && expanded < 60; j += 2) {
