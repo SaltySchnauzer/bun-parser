@@ -105,19 +105,38 @@ int main(int argc, char *argv[]) {
       if (fread(data_buffer, 1, read_size_data, ctx.file) != read_size_data) {
         return BUN_ERR_IO;
       }
-      data_buffer[read_size_data] = '\0';
-      printf("  Data: ");
-      for (size_t j = 0; j < read_size_data; j++) {
-        unsigned char b = (unsigned char)data_buffer[j];
-        if (b >= 32 && b <= 126) {
-          printf("%c", b);
-        } else {
-          printf("\033[33m\\%x\033[0m", b);
-        }
+
+      if (asset.compression == 0) {
+          // uncompressed — print directly
+          printf("  Data: ");
+          for (size_t j = 0; j < read_size_data; j++) {
+              unsigned char b = (unsigned char)data_buffer[j];
+              if (b >= 32 && b <= 126) {
+                  printf("%c", b);
+              } else {
+                  printf("\033[33m\\%x\033[0m", b);
+              }
+          }
+        } 
+      else if (asset.compression == 1) {
+          printf("  Data (RLE uncompressed): ");
+          for (size_t j = 0; j + 1 < read_size_data; j += 2) {
+              unsigned char count = (unsigned char)data_buffer[j];
+              unsigned char value = (unsigned char)data_buffer[j + 1];
+              for (unsigned char k = 0; k < count; k++) {
+                  if (value >= 32 && value <= 126) {
+                    printf("%c", value);
+                  } else {
+                    printf("\033[33m\\%x\033[0m", value);
+                  }
+              }
+          }
+      }else{
+          printf("Unsupported Compression");
       }
+      printf("\n");
     }
-    printf("\n");
+    bun_close(&ctx);
+    return result;
+    }
   }
-  bun_close(&ctx);
-  return result;
-}
