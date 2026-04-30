@@ -120,15 +120,17 @@ int main(int argc, char *argv[]) {
         } 
       else if (asset.compression == 1) {
           printf("  Data (RLE uncompressed): ");
-          for (size_t j = 0; j + 1 < read_size_data; j += 2) {
+          size_t expanded = 0;
+          for (size_t j = 0; j + 1 < read_size_data && expanded < 60; j += 2) {
               unsigned char count = (unsigned char)data_buffer[j];
               unsigned char value = (unsigned char)data_buffer[j + 1];
-              for (unsigned char k = 0; k < count; k++) {
+              for (unsigned char k = 0; k < count && expanded < 60; k++) {
                   if (value >= 32 && value <= 126) {
                     printf("%c", value);
                   } else {
                     printf("%x", value);
                   }
+                expanded++;
               }
           }
       }else{
