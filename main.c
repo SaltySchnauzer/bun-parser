@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
   //
   rewind(ctx.errors);
   char error_buffer[10000]; // should be large enough tee hee
-  if (fgets(error_buffer, sizeof(error_buffer), ctx.errors) != NULL) {
+  while (fgets(error_buffer, sizeof(error_buffer), ctx.errors) != NULL) {
       fprintf(stderr, "\033[31m%s\033[0m", error_buffer);
   }
   fclose(ctx.errors);
