@@ -25,8 +25,6 @@ void die(const char *fmt, ...)
 
 // Helper: open a test fixture by name, relative to the tests/ directory.
 static const char *fixture(const char *filename) {
-    // For simplicity, tests assume they are run from the project root, and
-    // test BUN files live in tests/fixtures/{valid,invalid}. Adjust if needed.
     static char path[256];
     int res = snprintf(path, sizeof(path), "tests/fixtures/%s", filename);
     if (res < 0) {
@@ -39,7 +37,7 @@ static const char *fixture(const char *filename) {
     return path;
 }
 
-// Example test suite: header parsing
+// Tests for header parsing
 
 START_TEST(test_valid_minimal) {
     BunParseContext ctx = {0};
@@ -266,6 +264,7 @@ START_TEST(test_overlapping_with_non_printable) {
     bun_close(&ctx);
 }
 END_TEST
+
 // Tests for compression parsing
 
 START_TEST(test_rle_zero_count) {
@@ -353,16 +352,6 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_compression, test_rle_bomb);
     tcase_add_test(tc_compression, test_rle_truncated);
     suite_add_tcase(s, tc_compression);
-/*
-
-
-
-    TCase *tc_asset = tcase_create("asset-tests");
-        suite_add_tcase(s, tc_asset);
-    tcase_add_test(tc_asset, test_asset_name_not_printable);
-    tcase_add_test(tc_asset, test_overlapping_with_non_printable);
-*/
-
     return s;
 }
 
