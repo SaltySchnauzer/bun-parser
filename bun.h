@@ -62,6 +62,9 @@ typedef struct {
     u32 type;
     u32 checksum;
     u32 flags;
+
+    int name_valid;
+    int data_valid;
 } BunAssetRecord;
 
 typedef struct {
@@ -93,7 +96,6 @@ typedef struct {
     BunAssetRecord *assets;  //stores the parsed assets content
     u32 parsed_asset_count;
     FILE *errors;           // tmpfile for error logging
-    // add further fields here as needed
 } BunParseContext;
 
 //
