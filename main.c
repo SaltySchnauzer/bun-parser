@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
               if (b >= 32 && b <= 126) {
                   printf("%c", b);
               } else {
-                  printf("\033[33m\\%x\033[0m", b);
+                  printf("%x", b);
               }
           }
         } 
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
                   if (value >= 32 && value <= 126) {
                     printf("%c", value);
                   } else {
-                    printf("\033[33m\\%x\033[0m", value);
+                    printf("%x", value);
                   }
               }
           }
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
       }
       printf("\n");
     }
-    bun_close(&ctx);
-    return result;
-    }
   }
+  bun_close(&ctx);
+  return result;
+}
