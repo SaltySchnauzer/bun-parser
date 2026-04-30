@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
         if (b >= 32 && b <= 126) {
           printf("%c", b);
         } else {
-          printf(".");
+          printf("\033[33m\\%x\033[0m", b);
         }
       }
     }
